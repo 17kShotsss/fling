@@ -1,0 +1,73 @@
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+
+local localPlayer = Players.LocalPlayer
+local targetPlayer = nil
+local fling = false
+
+-- Find a player by partial username or display name
+local function findPlayerByPartialName(partial)
+	partial = partial:lower()
+	for _, player in ipairs(Players:GetPlayers()) do
+		if player ~= localPlayer then
+			local uname = player.Name:lower()
+			local dname = player.DisplayName:lower()
+			if uname:sub(1, #partial) == partial or dname:sub(1, #partial) == partial then
+				return player
+			end
+		end
+	end
+	return nil
+end
+
+-- Main loop
+RunService.Heartbeat:Connect(function()
+	local myChar = localPlayer.Character
+	local myHRP = myChar and myChar:FindFirstChild("HumanoidRootPart")
+
+	if myHRP then
+		-- Only cancel velocity if you're being flung abnormally (not walking or jumping)
+		if myHRP.Velocity.Magnitude > 200 then
+			myHRP.Velocity = Vector3.zero
+		end
+
+		if myHRP.RotVelocity.Magnitude > 200 then
+			myHRP.RotVelocity = Vector3.zero
+		end
+	end
+
+	-- Fling logic
+	if fling and targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") and myHRP then
+		local targetHRP = targetPlayer.Character.HumanoidRootPart
+		myHRP.CFrame = targetHRP.CFrame
+		myHRP.RotVelocity = Vector3.new(9999, 9999, 9999)
+	end
+end)
+
+-- Chat command
+localPlayer.Chatted:Connect(function(msg)
+	msg = msg:lower():gsub("^%s*(.-)%s*$", "%1")
+
+	if msg:sub(1, 6) == ".fling" then
+		local arg = msg:sub(8):gsub("^%s*(.-)%s*$", "%1")
+
+		if arg == "stop" then
+			fling = false
+			targetPlayer = nil
+			local hrp = localPlayer.Character and localPlayer.Character:FindFirstChild("HumanoidRootPart")
+			if hrp then
+				hrp.RotVelocity = Vector3.zero
+			end
+			warn("Fling stopped.")
+		else
+			local player = findPlayerByPartialName(arg)
+			if player then
+				targetPlayer = player
+				fling = true
+				warn("Flinging: " .. player.Name)
+			else
+				warn("No player found starting with: " .. arg)
+			end
+		end
+	end
+end)
